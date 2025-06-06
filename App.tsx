@@ -10,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from '@legendapp/state/react';
 import { addTodo, todos$ as _todos$, toggleDone } from './utils/SupaLegend';
 import { Tables } from './utils/database.types';
+import React from 'react';
 
 // Emojis to decorate each todo.
 const NOT_DONE_ICON = String.fromCodePoint(0x1f7e0);
