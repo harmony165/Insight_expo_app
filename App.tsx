@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from '@legendapp/state/react';
-import { addTodo, todos$ as _todos$, toggleDone, supabase } from './utils/SupaLegend';
+import { addTodo, todos$, toggleDone, supabase, initializeUserTodos, clearUserTodos } from './utils/SupaLegend';
 import { Tables } from './utils/database.types';
 import React from 'react';
 import { Session } from '@supabase/supabase-js';
@@ -61,8 +61,10 @@ const Todo = ({ todo }: { todo: Tables<'todos'> }) => {
 };
 
 // A list component to show all the todos.
-const Todos = observer(({ todos$ }: { todos$: typeof _todos$ }) => {
+const Todos = observer(() => {
   // Get the todos from the state and subscribe to updates
+  if (!todos$) return <></>;
+  
   const todos = todos$.get();
   const renderItem = ({ item: todo }: { item: Tables<'todos'> }) => (
     <Todo todo={todo} />
@@ -153,7 +155,7 @@ const TodoApp = observer(({ session }: { session: Session }) => {
         </TouchableOpacity>
       </View>
       <NewTodo />
-      <Todos todos$={_todos$} />
+      <Todos />
       <ClearTodos />
     </SafeAreaView>
   );
@@ -166,10 +168,18 @@ const App = observer(() => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        initializeUserTodos(session.user.id);
+      }
     });
 
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) {
+        initializeUserTodos(session.user.id);
+      } else {
+        clearUserTodos();
+      }
     });
   }, []);
 

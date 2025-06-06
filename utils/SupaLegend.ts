@@ -42,30 +42,51 @@ const customSynced = configureSynced(syncedSupabase, {
   fieldDeleted: 'deleted',
 });
 
-export const todos$ = observable(
-  customSynced({
-    supabase,
-    collection: 'todos',
-    select: (from) =>
-      from.select('id,counter,text,done,created_at,updated_at,deleted,user_id'),
-    actions: ['read', 'create', 'update', 'delete'],
-    realtime: true,
-    // Persist data and pending changes locally
-    persist: {
-      name: 'todos',
-      retrySync: true, // Persist pending changes and retry
-    },
-    retry: {
-      infinite: true, // Retry changes with exponential backoff
-    },
-  })
-);
+// Function to create user-specific todos observable
+export function createUserTodos$(userId: string) {
+  return observable(
+    customSynced({
+      supabase,
+      collection: 'todos',
+      select: (from) =>
+        from.select('id,counter,text,done,created_at,updated_at,deleted,user_id')
+          .eq('user_id', userId),
+      actions: ['read', 'create', 'update', 'delete'],
+      realtime: true,
+      // Persist data and pending changes locally
+      persist: {
+        name: `todos-${userId}`,
+        retrySync: true, // Persist pending changes and retry
+      },
+      retry: {
+        infinite: true, // Retry changes with exponential backoff
+      },
+    })
+  );
+}
+
+// Global todos observable - will be set when user authenticates
+export let todos$: ReturnType<typeof createUserTodos$> | null = null;
+
+// Initialize todos for a specific user
+export function initializeUserTodos(userId: string) {
+  todos$ = createUserTodos$(userId);
+}
+
+// Clear todos when user logs out
+export function clearUserTodos() {
+  todos$ = null;
+}
 
 export async function addTodo(text: string) {
   const user = await supabase.auth.getUser();
   
   if (!user.data.user) {
     throw new Error('User must be authenticated to add todos');
+  }
+
+  if (!todos$) {
+    throw new Error('Todos not initialized for user');
   }
 
   const id = generateId();
@@ -78,5 +99,8 @@ export async function addTodo(text: string) {
 }
 
 export function toggleDone(id: string) {
+  if (!todos$) {
+    throw new Error('Todos not initialized for user');
+  }
   todos$[id].done.set((prev) => !prev);
 }
