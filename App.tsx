@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FlatList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from '@legendapp/state/react';
-import { addTodo, todos$ as _todos$, toggleDone } from './utils/SupaLegend';
+import { addTodo, todos$ as _todos$, toggleDone, supabase } from './utils/SupaLegend';
 import { Tables } from './utils/database.types';
 import React from 'react';
+import { Session } from '@supabase/supabase-js';
+import Auth from './components/Auth';
+import Account from './components/Account';
 
 // Emojis to decorate each todo.
 const NOT_DONE_ICON = String.fromCodePoint(0x1f7e0);
@@ -19,9 +23,13 @@ const DONE_ICON = String.fromCodePoint(0x2705);
 // The text input component to add a new todo.
 const NewTodo = () => {
   const [text, setText] = useState('');
-  const handleSubmitEditing = ({ nativeEvent: { text } }) => {
+  const handleSubmitEditing = async ({ nativeEvent: { text } }) => {
     setText('');
-    addTodo(text);
+    try {
+      await addTodo(text);
+    } catch (error) {
+      console.error('Error adding todo:', error);
+    }
   };
   return (
     <TextInput
@@ -71,6 +79,37 @@ const Todos = observer(({ todos$ }: { todos$: typeof _todos$ }) => {
   return <></>;
 });
 
+// User info component showing current user and sign out button
+const UserInfo = ({ session }: { session: Session }) => {
+  const [showAccount, setShowAccount] = useState(false);
+  
+  if (showAccount) {
+    return (
+      <View>
+        <TouchableOpacity 
+          onPress={() => setShowAccount(false)}
+          style={styles.backButton}
+        >
+          <Text style={styles.backButtonText}>← Back to Todos</Text>
+        </TouchableOpacity>
+        <Account session={session} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.userInfo}>
+      <Text style={styles.userEmail}>Welcome, {session.user.email}</Text>
+      <TouchableOpacity 
+        onPress={() => setShowAccount(true)}
+        style={styles.profileButton}
+      >
+        <Text style={styles.profileButtonText}>Profile</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
 // A button component to delete all the todos, only shows when there are some.
 const ClearTodos = () => {
   const handlePress = () => {
@@ -83,16 +122,67 @@ const ClearTodos = () => {
   ) : null;
 };
 
+// Todo App Component (when authenticated)
+const TodoApp = observer(({ session }: { session: Session }) => {
+  const [showAccount, setShowAccount] = useState(false);
+  
+  if (showAccount) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity 
+          onPress={() => setShowAccount(false)}
+          style={styles.backButton}
+        >
+          <Text style={styles.backButtonText}>← Back to Todos</Text>
+        </TouchableOpacity>
+        <Account session={session} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.heading}>Insight</Text>
+      <View style={styles.userInfo}>
+        <Text style={styles.userEmail}>Welcome, {session.user.email}</Text>
+        <TouchableOpacity 
+          onPress={() => setShowAccount(true)}
+          style={styles.profileButton}
+        >
+          <Text style={styles.profileButtonText}>Profile</Text>
+        </TouchableOpacity>
+      </View>
+      <NewTodo />
+      <Todos todos$={_todos$} />
+      <ClearTodos />
+    </SafeAreaView>
+  );
+});
+
 // The main app.
 const App = observer(() => {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.heading}>Legend-State Example</Text>
-        <NewTodo />
-        <Todos todos$={_todos$} />
-        <ClearTodos />
-      </SafeAreaView>
+      {session && session.user ? (
+        <TodoApp session={session} />
+      ) : (
+        <SafeAreaView style={styles.container}>
+          <Text style={styles.heading}>Welcome to Insight</Text>
+          <Auth />
+        </SafeAreaView>
+      )}
     </SafeAreaProvider>
   );
 });
@@ -108,6 +198,39 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 20,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  profileButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  profileButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    marginBottom: 16,
+  },
+  backButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
   },
   input: {
     borderColor: '#999',

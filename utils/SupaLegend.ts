@@ -8,9 +8,18 @@ import { configureSynced } from '@legendapp/state/sync';
 import { observablePersistAsyncStorage } from '@legendapp/state/persist-plugins/async-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabase = createClient<Database>(
+// Create Supabase client with auth configuration
+export const supabase = createClient<Database>(
   process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
 );
 
 // Provide a function to generate ids locally
@@ -38,7 +47,7 @@ export const todos$ = observable(
     supabase,
     collection: 'todos',
     select: (from) =>
-      from.select('id,counter,text,done,created_at,updated_at,deleted'),
+      from.select('id,counter,text,done,created_at,updated_at,deleted,user_id'),
     actions: ['read', 'create', 'update', 'delete'],
     realtime: true,
     // Persist data and pending changes locally
@@ -52,12 +61,19 @@ export const todos$ = observable(
   })
 );
 
-export function addTodo(text: string) {
+export async function addTodo(text: string) {
+  const user = await supabase.auth.getUser();
+  
+  if (!user.data.user) {
+    throw new Error('User must be authenticated to add todos');
+  }
+
   const id = generateId();
   // Add keyed by id to the todos$ observable to trigger a create in Supabase
   todos$[id].assign({
     id,
     text,
+    user_id: user.data.user.id,
   });
 }
 
