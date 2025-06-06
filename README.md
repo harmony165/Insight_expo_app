@@ -1,4 +1,4 @@
-# Expo App with Legend-State and Supabase Realtime
+# Insight Expo App - React Native Todo with Legend-State and Supabase
 
 <p>
   <!-- iOS -->
@@ -7,10 +7,15 @@
   <img alt="Supports Expo Android" longdesc="Supports Expo Android" src="https://img.shields.io/badge/Android-4630EB.svg?style=flat-square&logo=ANDROID&labelColor=A4C639&logoColor=fff" />
 </p>
 
-Local-first Expo App with [Legend-State](https://legendapp.com/open-source/state/v3/) and [Supabase](https://supabase.com/).
+A React Native Todo App built with [Legend-State](https://legendapp.com/open-source/state/v3/) and [Supabase](https://supabase.com/) for local-first data management.
 
-- [Read the detailed tutorial](https://supabase.link/local-first-expo-legend-state)
-- [Watch the video guide](https://supabase.link/local-first-expo-legend-state-yt)
+## Features
+
+- ✅ Add new todos
+- ✅ Mark todos as complete/incomplete
+- ✅ Real-time sync with Supabase
+- ✅ Local-first with Legend State
+- ✅ Modern React Native UI
 
 ## Setup
 
